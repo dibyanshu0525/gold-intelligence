@@ -3,16 +3,16 @@ from __future__ import annotations
 from typing import Any
 
 # National, regional/Pune-relevant and bullion/coin channels. Public links are
-# provided for quote verification; only Kalyan is wired to an automatic feed
-# in v1. Other prices must be entered from a dated official page or branch quote.
+# provided for quote verification. Best-effort automatic adapters cover retailers
+# with public machine-readable rates; other prices require a dated verified quote.
 RETAILERS: list[dict[str, Any]] = [
     {"id": "kalyan", "name": "Kalyan Jewellers", "segment": "Jewellery chain", "coverage": "Pan-India", "website": "https://www.kalyanjewellers.net/", "rate_url": "https://www.kalyanjewellers.net/gold-rate/Gold-Rate", "coin_url": "https://www.candere.com/", "feed": "automatic_kalyan", "notes": "Existing Kalyan India public-rate adapter; confirm Pune billing quote."},
-    {"id": "tanishq", "name": "Tanishq", "segment": "Jewellery chain", "coverage": "Pan-India", "website": "https://www.tanishq.co.in/", "rate_url": "https://www.tanishq.co.in/gold-rate.html", "coin_url": "https://www.tanishq.co.in/", "feed": "manual_quote", "notes": "Official rate page publishes 18K/22K/24K and historical rates."},
-    {"id": "malabar", "name": "Malabar Gold & Diamonds", "segment": "Jewellery chain", "coverage": "Pan-India", "website": "https://www.malabargoldanddiamonds.com/", "rate_url": "https://www.malabargoldanddiamonds.com/in/mh/en/jewellery.html", "coin_url": "https://www.malabargoldanddiamonds.com/", "feed": "manual_quote", "notes": "One-India-one-gold-rate claim; check current state/location selection."},
+    {"id": "tanishq", "name": "Tanishq", "segment": "Jewellery chain", "coverage": "Pan-India", "website": "https://www.tanishq.co.in/", "rate_url": "https://www.tanishq.co.in/gold-rate.html", "coin_url": "https://www.tanishq.co.in/", "feed": "automatic_tanishq", "notes": "Official rate page publishes 18K/22K/24K and historical rates."},
+    {"id": "malabar", "name": "Malabar Gold & Diamonds", "segment": "Jewellery chain", "coverage": "Pan-India", "website": "https://www.malabargoldanddiamonds.com/", "rate_url": "https://www.malabargoldanddiamonds.com/in/mh/en/live-gold-rate.html", "coin_url": "https://www.malabargoldanddiamonds.com/", "feed": "automatic_malabar", "notes": "One-India-one-gold-rate claim; check current state/location selection."},
     {"id": "joyalukkas", "name": "Joyalukkas", "segment": "Jewellery chain", "coverage": "Pan-India", "website": "https://www.joyalukkas.in/", "rate_url": "https://www.joyalukkas.in/goldrate", "coin_url": "https://www.joyalukkas.in/", "feed": "manual_quote", "notes": "Official page distinguishes retail-store and online-store rates."},
     {"id": "pngadgilandsons", "name": "PN Gadgil & Sons", "segment": "Jewellery chain", "coverage": "Maharashtra / Pune", "website": "https://pngadgilandsons.com/", "rate_url": "https://pngadgilandsons.com/", "coin_url": "https://pngadgilandsons.com/online-store/", "feed": "manual_quote", "notes": "Separate legal/retail business from PNG Jewellers; confirm branch quote and purity basis."},
     {"id": "pngjewellers", "name": "PNG Jewellers", "segment": "Jewellery chain", "coverage": "Maharashtra / Pune", "website": "https://www.onlinepng.com/", "rate_url": "https://www.onlinepng.com/", "coin_url": "https://www.onlinepng.com/", "feed": "manual_quote", "notes": "Online PNG lists gold bullion/coin products and metal rates."},
-    {"id": "senco", "name": "Senco Gold & Diamonds", "segment": "Jewellery chain", "coverage": "Pan-India / selected cities", "website": "https://sencogoldanddiamonds.com/", "rate_url": "https://sencogoldanddiamonds.com/gold-rate-today/pune", "coin_url": "https://sencogoldanddiamonds.com/", "feed": "manual_quote", "notes": "City-specific rate pages; use Pune page rather than a national comparison."},
+    {"id": "senco", "name": "Senco Gold & Diamonds", "segment": "Jewellery chain", "coverage": "Pan-India / selected cities", "website": "https://sencogoldanddiamonds.com/", "rate_url": "https://sencogoldanddiamonds.com/gold-rate-today/pune", "coin_url": "https://sencogoldanddiamonds.com/", "feed": "automatic_senco", "notes": "City-specific rate pages; use Pune page rather than a national comparison."},
     {"id": "reliance", "name": "Reliance Jewels", "segment": "Jewellery chain", "coverage": "Pan-India", "website": "https://www.reliancejewels.com/", "rate_url": "https://www.reliancejewels.com/", "coin_url": "https://www.reliancejewels.com/gold-accessories/", "feed": "manual_quote", "notes": "Homepage has a time-stamped gold-rate widget; check its update time."},
     {"id": "candere", "name": "Candere by Kalyan", "segment": "Online jewellery", "coverage": "Online / Pan-India", "website": "https://www.candere.com/", "rate_url": "https://www.candere.com/", "coin_url": "https://www.candere.com/", "feed": "manual_quote", "notes": "Online-first jewellery retailer; product price may include design and product premiums."},
     {"id": "caratlane", "name": "CaratLane (A Tata Product)", "segment": "Online + stores", "coverage": "Pan-India", "website": "https://www.caratlane.com/", "rate_url": "https://www.caratlane.com/", "coin_url": "https://www.caratlane.com/", "feed": "manual_quote", "notes": "Gold-rate link is available on its site; compare product checkout, not only metal rate."},
@@ -34,11 +34,18 @@ RETAILERS: list[dict[str, Any]] = [
 RETAILER_BY_ID = {item["id"]: item for item in RETAILERS}
 
 
-def retailer_directory(city: str, quotes: list[dict[str, Any]], kalyan_source: dict[str, Any] | None = None) -> dict[str, Any]:
+def retailer_directory(
+    city: str,
+    quotes: list[dict[str, Any]],
+    kalyan_source: dict[str, Any] | None = None,
+    automatic_quotes: dict[str, dict[str, Any]] | None = None,
+) -> dict[str, Any]:
     quote_map = {item["retailer_id"]: item for item in quotes}
+    automatic_quotes = automatic_quotes or {}
     output: list[dict[str, Any]] = []
     for item in RETAILERS:
-        quote = quote_map.get(item["id"])
+        # A verified city/showroom quote takes precedence over a public web rate.
+        quote = quote_map.get(item["id"]) or automatic_quotes.get(item["id"])
         if item["id"] == "kalyan" and not quote and kalyan_source:
             q24 = kalyan_source.get("kalyan_24k_10g") or {}
             q22 = kalyan_source.get("kalyan_22k_10g") or {}
@@ -87,7 +94,7 @@ def retailer_directory(city: str, quotes: list[dict[str, Any]], kalyan_source: d
         "comparison_notes": [
             "Retail base rates are not final invoice prices. Add 3% GST and the seller's making/coin premium where applicable.",
             "Compare like-for-like purity, fineness, net weight, city, quote time and tax basis.",
-            "Only Kalyan is automatically populated from the existing Kalyan India feed. Other retailer rates must be entered from a current official page or verified showroom quotation.",
+            "Automatic public-page rates are attempted for Kalyan, Tanishq, Malabar and Senco when current values can be parsed. Other retailers require a current official page or verified showroom quotation.",
             "Digital gold and physical minted products are separate categories; do not compare their price-only quotes without delivery, storage, spread and redemption terms.",
         ],
     }

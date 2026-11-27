@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import copy
+import re
 import time
 from datetime import datetime, timezone
 from typing import Any, Awaitable, Callable
@@ -52,7 +53,7 @@ def _num(value: Any) -> float | None:
 
 
 def parse_xaus(body: dict[str, Any]) -> dict[str, Any]:
-    """Normalize XAUS /api/v1/spot?currency=INR&unit=troy_oz."""
+    """Normalize XAUS /api/v1/spot?currency=INR&unit=oz."""
     spot_usd = _num(body.get("spot_usd_oz"))
     fx = _num(body.get("fx_rate"))
     xau = body.get("xau") or {}
@@ -146,6 +147,41 @@ def parse_frankfurter(body: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _safe_provider_error(provider: str, exc: Exception) -> str:
+    """Return a useful upstream error without leaking API keys or full request URLs."""
+    if isinstance(exc, httpx.HTTPStatusError):
+        host = exc.request.url.host or provider
+        detail = None
+        try:
+            body = exc.response.json()
+            if isinstance(body, dict):
+                detail = body.get("error_message") or body.get("message") or body.get("error")
+                code = body.get("error_code")
+                if code is not None:
+                    detail = f"code {code}: {detail or 'provider rejected request'}"
+        except Exception:
+            pass
+        suffix = f": {str(detail)[:140]}" if detail else ""
+        return f"HTTP {exc.response.status_code} from {host}{suffix}"
+    if isinstance(exc, httpx.RequestError):
+        host = exc.request.url.host if exc.request else provider
+        return f"{type(exc).__name__} contacting {host or provider}"
+
+    message = str(exc)
+    for secret in (
+        ENV.metals_dev_api_key,
+        ENV.goldapi_dev_key,
+        ENV.goldapi_key,
+        ENV.twelve_data_api_key,
+        ENV.goldprice_api_key,
+    ):
+        if secret:
+            message = message.replace(secret, "[redacted]")
+    message = re.sub(r"(?i)(api[_-]?key|apikey|token)=([^&\s]+)", r"\1=[redacted]", message)
+    message = re.sub(r"https?://[^\s]+", f"{provider} endpoint", message)
+    return f"{type(exc).__name__}: {message[:180]}"
+
+
 def _mark_stale(data: dict[str, Any], note: str) -> dict[str, Any]:
     result = copy.deepcopy(data)
     for value in result.values():
@@ -232,7 +268,7 @@ async def _cached_fetch(
             health["cache_age_seconds"] = 0
             return copy.deepcopy(data), copy.deepcopy(health)
         except Exception as exc:
-            health["last_error"] = f"{type(exc).__name__}: {str(exc)[:220]}"
+            health["last_error"] = _safe_provider_error(name, exc)
             # Back off for at least the source TTL after a failure. This matters
             # most for free monthly-quota endpoints such as GoldPrice.dev.
             _RETRY_AT[name] = time.monotonic() + max(60, ttl_seconds)
@@ -264,7 +300,7 @@ async def collect_multi_source_market_data(client: httpx.AsyncClient) -> dict[st
 
     async def load_xaus() -> dict[str, Any]:
         body, _ = await _get_json(client, "https://xaus.com/api/v1/spot", headers=timeout_headers,
-                                  params={"currency": "INR", "unit": "troy_oz", "compact": "1"})
+                                  params={"currency": "INR", "unit": "oz", "compact": "1"})
         return parse_xaus(body)
 
     async def load_gold_api_com() -> dict[str, Any]:
