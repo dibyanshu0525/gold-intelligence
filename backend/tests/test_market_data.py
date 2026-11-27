@@ -7,6 +7,7 @@ import pytest
 
 from app.market_data import (
     _cached_fetch,
+    _safe_provider_error,
     clear_provider_cache,
     parse_frankfurter,
     parse_gold_api_com,
@@ -143,6 +144,7 @@ def test_multi_source_orchestrator_selects_keyless_xaus(monkeypatch):
 
         async def handler(request):
             assert request.url.host == "xaus.com"
+            assert request.url.params.get("unit") == "oz"
             return httpx.Response(200, json={
                 "xau": {"price": 270000.0, "currency": "INR", "unit": "troy_oz"},
                 "spot_usd_oz": 3100.0,
@@ -264,5 +266,46 @@ def test_goldprice_adapter_uses_current_single_symbol_spot_endpoint(monkeypatch)
         assert seen == [("/v1/spot/XAU", {"currency": "INR", "include": "sources"})]
         assert result["cross_checks"]["goldprice_dev"]["status"] == "delayed"
         assert result["cross_checks"]["goldprice_dev"]["value"] == pytest.approx(270000 * 10 / TROY_OUNCE_GRAMS)
+
+    asyncio.run(run())
+
+
+
+def test_safe_provider_error_redacts_api_key_from_failed_request_url():
+    request = httpx.Request(
+        "GET",
+        "https://api.metals.dev/v1/metal/spot?metal=gold&api_key=super-secret",
+    )
+    response = httpx.Response(
+        400,
+        request=request,
+        json={"status": "failure", "error_code": 2101, "error_message": "invalid unit"},
+    )
+    error = httpx.HTTPStatusError("bad request", request=request, response=response)
+    message = _safe_provider_error("metals_dev", error)
+    assert "super-secret" not in message
+    assert "api_key" not in message
+    assert "HTTP 400" in message
+    assert "2101" in message
+
+
+def test_metals_dev_authority_uses_troy_ounce_and_converts_to_10g(monkeypatch):
+    from app import providers
+
+    async def run():
+        monkeypatch.setattr(providers, "ENV", SimpleNamespace(metals_dev_api_key="test-key"))
+
+        async def handler(request):
+            assert request.url.params.get("unit") == "toz"
+            assert request.url.params.get("api_key") == "test-key"
+            return httpx.Response(200, json={
+                "status": "success",
+                "rates": {"ibja_gold": TROY_OUNCE_GRAMS * 1000},
+                "timestamp": "2026-11-23T10:00:00Z",
+            })
+
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+            result = await providers.MetalsDevProvider(client).authority("ibja")
+        assert result["ibja_999_10g"]["value"] == pytest.approx(10000.0)
 
     asyncio.run(run())

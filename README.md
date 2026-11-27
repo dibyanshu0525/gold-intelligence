@@ -9,7 +9,7 @@ A full-stack, locally runnable gold-price dashboard built with **FastAPI + React
 - XAU/USD spot price, USD/INR and derived unadjusted INR value for 999 gold.
 - Configurable import-duty + domestic-premium model to estimate an India landed-parity reference.
 - IBJA 999 benchmark and MCX authority feed when your Metals.Dev plan exposes those authority fields.
-- Kalyan published 24K/22K rate page parser as a best-effort fallback. The page may be national-level; Kalyan says billing-time rate prevails, so enter a Pune showroom quote for a purchase decision.
+- Kalyan published 24K/22K rate parser plus best-effort public-page adapters for Tanishq, Malabar and Senco. Other retailers remain available for manual verified quotes. Website rates can be national/state/city scoped and retailer billing-time rates prevail.
 - Kalyan-vs-IBJA premium, IBJA-vs-model spread, MCX-vs-IBJA basis and 22K/24K estimates.
 - Physical coin invoice estimator (weight, coin premium, flat fees and GST are configurable).
 - Rules-based signals: favourable published quote, fair/verify bill, negotiate/compare, or verify data.
@@ -84,7 +84,7 @@ The default 3% GST is an estimate; have the seller show the tax treatment and co
 | USD/INR | Metals.Dev currency endpoint | Twelve Data; otherwise open.er-api.com daily reference | The public fallback is daily, not live FX |
 | IBJA 999 | Metals.Dev `authority=ibja` | Public IBJA webpage parser | Public scrape is a fallback, not an official licensed API |
 | MCX gold | Metals.Dev `authority=mcx` | Manual override | Provider availability/contract basis depends on plan and feed schema |
-| Kalyan 24K/22K | Kalyan official public rate page | Manual Pune showroom quote | Page may be national; billing-time branch quote prevails |
+| Retailer 22K/24K | Kalyan, Tanishq, Malabar and Senco official pages where current rows are parseable | Manual showroom quote for all listed retailers | Website scope, purity and timestamps differ; verify the exact branch quote |
 
 Metals.Dev documentation states up to 60-second delay for spot/metal rates, up to 120 seconds for currency rates and up to 90 seconds for authority rates. It documents `lbma`, `mcx` and `ibja` authority identifiers. Check your subscription plan for endpoint access, request quota and licence rights before commercial use.
 
@@ -193,6 +193,7 @@ Manual entries are clearly tagged and timestamped. Enter only a value that you h
 - **Coin premium:** replace the default with the actual coin premium Kalyan quotes you.
 - **GST:** default 3%; ask for the invoice's taxable amount and tax treatment.
 - **Kalyan premium tolerance:** the threshold above which the dashboard recommends comparing/negotiating.
+- **Retailer comparison:** automatic page rates are best-effort for Kalyan, Tanishq, Malabar and Senco. A blocked page, missing published rate or unparseable page stays unavailable; a verified city/showroom quote takes precedence. Other retailers can be populated from the Add retailer quote form.
 
 The recommendation intentionally does not label a stale price or a large spread as arbitrage. A market-data lag is only a possible quote-check trigger; the jeweller can change the rate before billing and may use different hedging/market references.
 
@@ -225,4 +226,4 @@ The tests cover troy-ounce conversion, duty/premium model, basis calculation, GS
 
 ---
 
-**Version:** 1.0.0 · **Purpose:** personal market monitoring and retail purchase comparison.
+**Version:** 1.3.0 · **Purpose:** personal market monitoring and retail purchase comparison.

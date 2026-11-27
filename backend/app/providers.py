@@ -8,6 +8,7 @@ import httpx
 from bs4 import BeautifulSoup
 
 from .config import ENV
+from .pricing import TROY_OUNCE_GRAMS
 
 USER_AGENT = "GoldIntelligence/1.0 (+local personal research dashboard)"
 
@@ -58,10 +59,21 @@ class MetalsDevProvider:
             raise RuntimeError("METALS_DEV_API_KEY is not configured")
         params = {**params, "api_key": ENV.metals_dev_api_key}
         response = await self.client.get(f"{self.base_url}/{path}", params=params)
-        response.raise_for_status()
-        body = response.json()
+        try:
+            body = response.json()
+        except ValueError:
+            body = {}
+        if response.is_error:
+            message = body.get("error_message") or body.get("message") if isinstance(body, dict) else None
+            code = body.get("error_code") if isinstance(body, dict) else None
+            suffix = f" (code {code})" if code is not None else ""
+            raise RuntimeError(f"Metals.Dev HTTP {response.status_code}{suffix}: {message or 'request rejected'}")
+        if not isinstance(body, dict):
+            raise RuntimeError("Metals.Dev returned a non-object JSON response")
         if body.get("status") == "failure":
-            raise RuntimeError(body.get("error_message") or "Metals.Dev returned failure")
+            code = body.get("error_code")
+            suffix = f" (code {code})" if code is not None else ""
+            raise RuntimeError(f"Metals.Dev returned failure{suffix}: {body.get('error_message') or 'unknown provider error'}")
         return body
 
     async def spot(self) -> dict[str, Any]:
@@ -84,7 +96,7 @@ class MetalsDevProvider:
         }
 
     async def authority(self, authority: str) -> dict[str, Any]:
-        body = await self._get("metal/authority", {"authority": authority, "currency": "INR", "unit": "g"})
+        body = await self._get("metal/authority", {"authority": authority, "currency": "INR", "unit": "toz"})
         rates = body.get("rates") or body.get("metals") or {}
         ts = _timestamp(body)
         prefix = authority.lower()
@@ -96,9 +108,8 @@ class MetalsDevProvider:
             if raw is None:
                 return None
             amount = float(raw)
-            # Normally unit=g returns around ₹10k–₹20k per gram in this feed.
-            # If the provider ever returns an already-normalised 10g figure, leave it unchanged.
-            return amount if amount > 30000 else amount * 10.0
+            # Authority endpoint returns INR per troy ounce; convert to INR per 10g.
+            return amount * 10.0 / TROY_OUNCE_GRAMS
 
         selected_10g = normalize_10g(selected)
         am_10g = normalize_10g(am)
