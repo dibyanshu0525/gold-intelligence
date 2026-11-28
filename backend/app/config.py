@@ -49,7 +49,7 @@ class Env:
     poll_seconds: int = _int("POLL_SECONDS", 60)
     request_timeout: float = _float("REQUEST_TIMEOUT_SECONDS", 12.0)
     database_path: str = os.getenv("DATABASE_PATH", str(PROJECT_ROOT / "data" / "gold_tracker.db"))
-    cors_origins: str = os.getenv("CORS_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173")
+    cors_origins: str = os.getenv("CORS_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173,https://gold-intelligence-0jlq.onrender.com")
     kalyan_url: str = os.getenv("KALYAN_RATE_URL", "https://store.kalyanjewellers.net/gold-rate/india/en")
     ibja_url: str = os.getenv("IBJA_RATE_URL", "https://ibjarates.com/")
     default_import_duty_pct: float = _float("DEFAULT_IMPORT_DUTY_PCT", 15.0)
