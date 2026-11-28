@@ -189,3 +189,12 @@ select:focus, input:focus { border-color: #b48c4c; box-shadow: 0 0 0 2px rgba(18
 .provider-health-error { display: block; color: #e79a87; font: 8px 'DM Sans', sans-serif; margin-top: 6px; overflow-wrap: anywhere; }
 @media (max-width: 900px) { .provider-health-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 600px) { .provider-health-grid { grid-template-columns: 1fr; } }
+
+
+/* Automatic retailer feed diagnostics */
+.retailer-feed-health { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 10px; }
+.retailer-feed-health span { border: 1px solid #354354; border-radius: 6px; padding: 6px 8px; color: #8796a9; background: rgba(12, 19, 28, .35); font-size: 8px; line-height: 1.45; }
+.retailer-feed-health strong { color: #cbd7e5; text-transform: uppercase; }
+.retailer-feed-health .healthy { border-color: #315c49; color: #8bc7a5; }
+.retailer-feed-health .stale { border-color: #725332; color: #e2b277; }
+.retailer-feed-health .error { border-color: #75433e; color: #e49c8a; }

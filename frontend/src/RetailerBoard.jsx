@@ -172,15 +172,16 @@ export default function RetailerBoard() {
           <td>{money(r.gold_22k_per_g, 2)}</td>
           <td>{money(r.gold_24k_per_g, 2)}</td>
           <td>{money(r.coin_10g_total, 0)}</td>
-          <td><span className={`quote-state ${r.quote_status === 'not_entered' ? 'missing' : r.quote_status === 'manual' ? 'manual' : 'feed'}`}>{r.quote_status === 'not_entered' ? 'QUOTE NEEDED' : r.quote_status === 'manual' ? 'MANUAL QUOTE' : 'PUBLISHED FEED'}</span><small>{time(r.quote_timestamp)}</small>{r.quote_source && <small>{r.quote_source}</small>}</td>
+          <td><span className={`quote-state ${r.quote_status === 'not_entered' ? 'missing' : r.quote_status === 'manual' ? 'manual' : 'feed'}`}>{r.quote_status === 'not_entered' ? 'QUOTE NEEDED' : r.quote_status === 'manual' ? 'MANUAL QUOTE' : r.quote_status === 'stale' ? 'STALE FEED' : 'PUBLISHED FEED'}</span><small>{time(r.quote_timestamp)}</small>{r.quote_source && <small>{r.quote_source}</small>}</td>
           <td><div className="retailer-row-actions"><a href={r.rate_url || r.website} target="_blank" rel="noreferrer" title="Open official rate page">Rate page <ExternalLink size={11} /></a><button onClick={() => edit(r)} title="Add or edit quote">{r.quote_status === 'manual' ? 'Edit' : 'Add quote'}</button>{r.quote_status === 'manual' && <button className="icon-action" onClick={() => remove(r.id)} title="Remove quote"><Trash2 size={12} /></button>}</div></td>
         </tr>)}</tbody>
       </table>
       {!visible.length && <div className="retailer-empty">No retailers match this filter.</div>}
     </div>
 
+    {directory?.provider_health && <div className="retailer-feed-health">{Object.entries(directory.provider_health).map(([id, health]) => <span key={id} className={health.status === 'ok' || health.status === 'cached' ? 'healthy' : health.status === 'stale' ? 'stale' : 'error'}><strong>{id.replaceAll('_', ' ')}</strong> · {health.status.toUpperCase()}{health.last_error ? ` — ${health.last_error}` : ''}</span>)}</div>}
     {error && <div className="retailer-error">{error}</div>}
     {notice && <div className="retailer-notice-bar">{notice}</div>}
-    <div className="retailer-disclaimer"><Coins size={14} /><span>Do not treat an empty row as ₹0 or a retailer as cheaper. Only Kalyan is populated automatically in this release. Enter competitor quotes from the official page or showroom; keep 22K/24K base rates separate from the final coin invoice. Digital gold has different fees, custody and redemption risks.</span></div>
+    <div className="retailer-disclaimer"><Coins size={14} /><span>Do not treat an empty row as ₹0 or a retailer as cheaper. Automatic published rates are attempted for Kalyan, Tanishq, Malabar and Senco when their official pages expose current values. Other retailers remain quote-needed until a dated official or showroom rate is entered; keep 22K/24K base rates separate from the final coin invoice. Digital gold has different fees, custody and redemption risks.</span></div>
   </section>
 }

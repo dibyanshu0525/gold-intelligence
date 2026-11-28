@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import asyncio
 import logging
+
+import httpx
 from contextlib import asynccontextmanager
 from typing import Any
 
@@ -13,6 +15,7 @@ from . import db
 from .config import ENV
 from .service import dashboard_payload, refresh_and_store
 from .retailers import RETAILER_BY_ID, retailer_directory
+from .retailer_feeds import collect_automatic_retailer_quotes
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("gold-intelligence")
@@ -196,7 +199,20 @@ async def get_retailers(city: str = "Pune") -> dict[str, Any]:
     city = city.strip() or "Pune"
     latest = dashboard_payload() or {}
     source_data = latest.get("sources") or {}
-    return retailer_directory(city, db.get_retailer_quotes(city), source_data)
+    async with httpx.AsyncClient(
+        timeout=httpx.Timeout(ENV.request_timeout),
+        follow_redirects=True,
+        headers={"User-Agent": "GoldIntelligence/1.3"},
+    ) as client:
+        automatic_quotes, retailer_health = await collect_automatic_retailer_quotes(client, city)
+    result = retailer_directory(
+        city,
+        db.get_retailer_quotes(city),
+        source_data,
+        automatic_quotes,
+    )
+    result["provider_health"] = retailer_health
+    return result
 
 
 @app.post("/api/retailer-quotes")
