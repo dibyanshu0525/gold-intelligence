@@ -1,9 +1,10 @@
-
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
-const proxyTarget =
-  process.env.VITE_DEV_PROXY_TARGET || 'http://localhost:8000'
+const localProxyTarget = 'http://localhost:8000'
+const renderProxyTarget = 'https://gold-intelligence-backend.onrender.com'
+const proxyTarget = process.env.VITE_DEV_PROXY_TARGET ||
+  (process.env.RENDER === 'true' ? renderProxyTarget : localProxyTarget)
 
 export default defineConfig({
   plugins: [react()],
@@ -17,6 +18,7 @@ export default defineConfig({
       '/api': {
         target: proxyTarget,
         changeOrigin: true,
+        secure: true,
       },
     },
   },
